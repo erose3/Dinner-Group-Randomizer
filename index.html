@@ -95,9 +95,7 @@
                     }
                 });
 
-                // Handle any remaining guests
                 if (currentGroup.length > 0) {
-                    // Distribute remaining guests among existing groups
                     while (currentGroup.length > 0) {
                         for (let i = 0; i < newGroups.length && currentGroup.length > 0; i++) {
                             newGroups[i].members.push(currentGroup.pop());
@@ -106,6 +104,28 @@
                 }
 
                 setGroups(newGroups);
+            };
+
+            const downloadCSV = () => {
+                let csvContent = "Group,Cuisine,Role,Name,Phone\n";
+                groups.forEach((group, groupIndex) => {
+                    group.members.forEach((member, memberIndex) => {
+                        const role = member === group.lead ? "Lead" : "Member";
+                        csvContent += `${groupIndex + 1},${group.cuisine},${role},${member.name},${member.phone}\n`;
+                    });
+                });
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", "dinner_groups.csv");
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
             };
 
             return (
@@ -129,7 +149,10 @@
                                 className="w-20"
                             />
                         </div>
-                        <Button onClick={assignGroups}>Organize Groups</Button>
+                        <div className="flex gap-2">
+                            <Button onClick={assignGroups}>Organize Groups</Button>
+                            {groups.length > 0 && <Button onClick={downloadCSV}>Download CSV</Button>}
+                        </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {groups.map((group, index) => (
@@ -157,3 +180,4 @@
     </script>
 </body>
 </html>
+
