@@ -54,7 +54,8 @@
 
         const DinnerGroupOrganizer = () => {
             const [guestInput, setGuestInput] = useState('');
-            const [groupSize, setGroupSize] = useState(6);
+            const [minGroupSize, setMinGroupSize] = useState(6);
+            const [maxGroupSize, setMaxGroupSize] = useState(8);
             const [groups, setGroups] = useState([]);
 
             const cuisines = ["Italian", "Chinese", "Mexican", "Indian", "Japanese", "Thai", "French", "Greek", "Spanish", "American"];
@@ -63,45 +64,64 @@
                 setGuestInput(e.target.value);
             };
 
-            const handleGroupSizeChange = (e) => {
+            const handleMinGroupSizeChange = (e) => {
                 const size = parseInt(e.target.value);
-                setGroupSize(size > 0 ? size : 1);
+                setMinGroupSize(size > 0 ? size : 1);
+            };
+
+            const handleMaxGroupSizeChange = (e) => {
+                const size = parseInt(e.target.value);
+                setMaxGroupSize(size >= minGroupSize ? size : minGroupSize);
             };
 
             const assignGroups = () => {
-                const guestLines = guestInput.split('\n').map(line => line.trim()).filter(line => line !== '');
-                const guests = guestLines.map(line => {
-                    const [name, phone] = line.split(',').map(item => item.trim());
-                    return { name, phone };
-                });
+                const guests = guestInput.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line !== '')
+                    .map(line => {
+                        const [name, phone] = line.split(',').map(item => item.trim());
+                        return { name, phone };
+                    });
 
                 const shuffledGuests = [...guests].sort(() => Math.random() - 0.5);
                 
-                const newGroups = [];
-                let currentGroup = [];
+                const totalGuests = shuffledGuests.length;
+                const avgGroupSize = (minGroupSize + maxGroupSize) / 2;
+                const idealNumGroups = Math.round(totalGuests / avgGroupSize);
+                
+                const newGroups = Array.from({ length: idealNumGroups }, () => ({
+                    members: [],
+                    cuisine: cuisines[Math.floor(Math.random() * cuisines.length)]
+                }));
 
                 shuffledGuests.forEach((guest, index) => {
-                    currentGroup.push(guest);
-                    
-                    if (currentGroup.length === groupSize || index === shuffledGuests.length - 1) {
-                        const cuisine = cuisines[Math.floor(Math.random() * cuisines.length)];
-                        const leadIndex = Math.floor(Math.random() * currentGroup.length);
-                        newGroups.push({
-                            members: currentGroup,
-                            cuisine: cuisine,
-                            lead: currentGroup[leadIndex]
-                        });
-                        currentGroup = [];
+                    const groupIndex = index % idealNumGroups;
+                    newGroups[groupIndex].members.push(guest);
+                });
+
+                // Adjust groups if any are outside the min-max range
+                let overflowGuests = [];
+                newGroups.forEach(group => {
+                    while (group.members.length > maxGroupSize) {
+                        overflowGuests.push(group.members.pop());
                     }
                 });
 
-                if (currentGroup.length > 0) {
-                    while (currentGroup.length > 0) {
-                        for (let i = 0; i < newGroups.length && currentGroup.length > 0; i++) {
-                            newGroups[i].members.push(currentGroup.pop());
-                        }
+                // Distribute overflow guests
+                overflowGuests.forEach(guest => {
+                    const smallestGroup = newGroups.reduce((a, b) => 
+                        a.members.length <= b.members.length ? a : b
+                    );
+                    if (smallestGroup.members.length < maxGroupSize) {
+                        smallestGroup.members.push(guest);
                     }
-                }
+                });
+
+                // Assign group leads
+                newGroups.forEach(group => {
+                    const leadIndex = Math.floor(Math.random() * group.members.length);
+                    group.lead = group.members[leadIndex];
+                });
 
                 setGroups(newGroups);
             };
@@ -109,7 +129,7 @@
             const downloadCSV = () => {
                 let csvContent = "Group,Cuisine,Role,Name,Phone\n";
                 groups.forEach((group, groupIndex) => {
-                    group.members.forEach((member, memberIndex) => {
+                    group.members.forEach((member) => {
                         const role = member === group.lead ? "Lead" : "Member";
                         csvContent += `${groupIndex + 1},${group.cuisine},${role},${member.name},${member.phone}\n`;
                     });
@@ -139,13 +159,22 @@
                             className="mb-2 h-40"
                         />
                         <div className="flex items-center gap-2 mb-2">
-                            <label htmlFor="groupSize" className="whitespace-nowrap">Group Size:</label>
+                            <label htmlFor="minGroupSize" className="whitespace-nowrap">Min Group Size:</label>
                             <Input
-                                id="groupSize"
+                                id="minGroupSize"
                                 type="number"
-                                value={groupSize}
-                                onChange={handleGroupSizeChange}
+                                value={minGroupSize}
+                                onChange={handleMinGroupSizeChange}
                                 min="1"
+                                className="w-20"
+                            />
+                            <label htmlFor="maxGroupSize" className="whitespace-nowrap">Max Group Size:</label>
+                            <Input
+                                id="maxGroupSize"
+                                type="number"
+                                value={maxGroupSize}
+                                onChange={handleMaxGroupSizeChange}
+                                min={minGroupSize}
                                 className="w-20"
                             />
                         </div>
@@ -180,4 +209,3 @@
     </script>
 </body>
 </html>
-
